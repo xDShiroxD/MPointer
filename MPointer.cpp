@@ -4,9 +4,10 @@ template <typename T>
 class MPointer {
     private:
         T* ptr;
-        int ID; 
+        int ID;
+        int* contadorRef;
 
-        MPointer(T* p) : ptr(p), ID(generadorID()) {} //Para que solo sea llamado con New()
+        MPointer(T* p) : ptr(p), contadorRef(new int(1)), ID(generadorID()) {} //Para que solo sea llamado con New()
 
     //Generador de ID's unicos
     int generadorID() {
@@ -21,10 +22,18 @@ class MPointer {
         return MPointer<T>(newPtr);
         }
 
+        //Constuctor para aumentar el contador al copiar
+        MPointer(const MPointer& other) : ptr(other.ptr), contadorRef(other.contadorRef), ID(other.ID){
+            ++(*contadorRef);
+        }
+
         //Libera memoria
         ~MPointer() {
-            delete ptr;
+            if (--(*contadorRef) == 0) {
+                delete ptr;
+                delete contadorRef;
         }
+    }
 
         //Sobrecarga de operadores
         T& operator*() const {
@@ -35,16 +44,21 @@ class MPointer {
             return ptr;
         }
 
-        MPointer& operator=(const MPointer& other) {
-            if (this != static_cast<const void*>(&other)) {
-                this->ptr = other.ptr;
-                this->ID = other.ID;
-
-                //Aqui se actualiza el GC
-
+    // Sacado de IA, evita que se haga doble delete
+    MPointer& operator=(MPointer& other) {
+        if (this != static_cast<const void*>(&other)) {
+            if (--(*contadorRef) == 0) {
+                delete ptr;
+                delete contadorRef;
             }
-            return *this;
+                //En caso de no ser la ultima instancia copia los datos
+                ptr = other.ptr;
+                ID = other.ID;
+                contadorRef = other.contadorRef;
+                ++(*contadorRef);
         }
+        return *this;
+    }
 
 };
 
